@@ -1,0 +1,7 @@
+apiVersion: kustomize.siliconhills.dev/v1alpha1
+kind: Kustomization
+metadata:
+  name: kustomization-sample
+spec:
+  # Add fields here
+  foo: bar
