@@ -2,6 +2,10 @@ export interface OperatorFrameworkPlugins {
   [key: string]: {};
 }
 
+export interface HashMap<T = any> {
+  [key: string]: T;
+}
+
 export interface OperatorFrameworkResource {
   group: string;
   kind: string;
@@ -17,3 +21,5 @@ export interface OperatorFrameworkProject {
   resources: OperatorFrameworkResource[];
   version: string;
 }
+
+export * from './kustomize';
