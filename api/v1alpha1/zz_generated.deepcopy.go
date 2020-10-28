@@ -149,8 +149,14 @@ func (in *KustomizationSpec) DeepCopyInto(out *KustomizationSpec) {
 	}
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
-		*out = make([]types.Target, len(*in))
-		copy(*out, *in)
+		*out = make([]*types.Selector, len(*in))
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(types.Selector)
+				**out = **in
+			}
+		}
 	}
 	if in.SecretGenerator != nil {
 		in, out := &in.SecretGenerator, &out.SecretGenerator

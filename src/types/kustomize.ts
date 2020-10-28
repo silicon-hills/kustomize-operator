@@ -1,5 +1,11 @@
 import { HashMap } from '.';
 
+export interface Gvk {
+  group?: string; // string `json:"group,omitempty" yaml:"group,omitempty"`
+  kind?: string; // string `json:"kind,omitempty" yaml:"kind,omitempty"`
+  version?: string; // string `json:"version,omitempty" yaml:"version,omitempty"`
+}
+
 export interface GeneratorOptions {
   annotations?: HashMap<string>; // map[string]string `json:"annotations,omitempty" yaml:"annotations,omitempty"`
   disableNameSuffixHash?: boolean; // bool `json:"disableNameSuffixHash,omitempty" yaml:"disableNameSuffixHash,omitempty"`
@@ -31,14 +37,14 @@ export interface Image {
 }
 
 // resid.Gvk `json:",inline,omitempty" yaml:",inline,omitempty"`
-export interface Target {
+export interface Target extends Gvk {
   apiVersion?: string; // string `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
   name: string; // string `json:"name" yaml:"name"`
   namespace?: string; // string `json:"namespace,omitempty" yaml:"namespace,omitempty"`
 }
 
 // resid.Gvk `json:",inline,omitempty" yaml:",inline,omitempty"`
-export interface Selector {
+export interface Selector extends Gvk {
   annotationSelector?: string; // string `json:"annotationSelector,omitempty" yaml:"annotationSelector,omitempty"`
   labelSelector?: string; // string `json:"labelSelector,omitempty" yaml:"labelSelector,omitempty"`
   name?: string; // string `json:"name,omitempty" yaml:"name,omitempty"`
@@ -52,7 +58,7 @@ export interface Patch {
 }
 
 // resid.Gvk `json:",inline,omitempty" yaml:",inline,omitempty"`
-export interface PatchTarget {
+export interface PatchTarget extends Gvk {
   name: string; // string `json:"name" yaml:"name"`
   namespace?: string; // string `json:"namespace,omitempty" yaml:"namespace,omitempty"`
 }
@@ -100,7 +106,7 @@ export interface KustomizationSpec {
   patchesJson6902?: PatchJson6902[]; // []kustomizeTypes.PatchJson6902 `json:"patchesJson6902,omitempty" yaml:"patchesJson6902,omitempty"`
   patchesStrategicMerge?: PatchStrategicMerge[]; // []kustomizeTypes.PatchStrategicMerge `json:"patchesStrategicMerge,omitempty" yaml:"patchesStrategicMerge,omitempty"`
   replicas?: Replica[]; // []kustomizeTypes.Replica `json:"replicas,omitempty" yaml:"replicas,omitempty"`
-  resources?: Target[]; // []kustomizeTypes.Target `json:"resources,omitempty" yaml:"resources,omitempty"`
+  resources?: Selector[]; // []*kustomizeTypes.Selector `json:"resources,omitempty" yaml:"resources,omitempty"`
   secretGenerator?: SecretArgs[]; // []kustomizeTypes.SecretArgs `json:"secretGenerator,omitempty" yaml:"secretGenerator,omitempty"`
   vars?: Var[]; // []kustomizeTypes.Var `json:"vars,omitempty" yaml:"vars,omitempty"`
 }

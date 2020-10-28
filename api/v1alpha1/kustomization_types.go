@@ -84,11 +84,9 @@ type KustomizationSpec struct {
 	// specification. This can also be done with a patch.
 	Replicas []kustomizeTypes.Replica `json:"replicas,omitempty" yaml:"replicas,omitempty"`
 
-	// Resources refers to Kubernetes resources under the
-	// purview of this kustomization. Resources should use the
-	// raw name of the object (the name specified in its YAML,
-	// before addition of a namePrefix and a nameSuffix).
-	Resources []kustomizeTypes.Target `json:"resources,omitempty" yaml:"resources,omitempty"`
+	// Resources refers to kubernetes resources subject to
+	// kustomization.
+	Resources []*kustomizeTypes.Selector `json:"resources,omitempty" yaml:"resources,omitempty"`
 
 	// SecretGenerator is a list of secrets to generate from
 	// local data (one secret per list item).

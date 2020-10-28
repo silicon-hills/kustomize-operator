@@ -290,21 +290,24 @@ spec:
                 type: object
               type: array
             resources:
-              description: Resources refers to Kubernetes resources under the purview
-                of this kustomization. Resources should use the raw name of the object
-                (the name specified in its YAML, before addition of a namePrefix and
-                a nameSuffix).
+              description: Resources refers to kubernetes resources subject to kustomization.
               items:
-                description: Target refers to a kubernetes object by Group, Version,
-                  Kind and Name gvk.Gvk contains Group, Version and Kind APIVersion
-                  is added to keep the backward compatibility of using ObjectReference
-                  for Var.ObjRef
+                description: Selector specifies a set of resources. Any resource that
+                  matches intersection of all conditions is included in this set.
                 properties:
-                  apiVersion:
+                  annotationSelector:
+                    description: AnnotationSelector is a string that follows the label
+                      selection expression https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#api
+                      It matches with the resource annotations.
                     type: string
                   group:
                     type: string
                   kind:
+                    type: string
+                  labelSelector:
+                    description: LabelSelector is a string that follows the label
+                      selection expression https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#api
+                      It matches with the resource labels.
                     type: string
                   name:
                     type: string
@@ -312,8 +315,6 @@ spec:
                     type: string
                   version:
                     type: string
-                required:
-                - name
                 type: object
               type: array
             secretGenerator:
