@@ -1,4 +1,3 @@
-import fs from 'fs-extra';
 import { Options } from 'execa';
 import {
   KubernetesListObject,
@@ -40,27 +39,29 @@ export default class Kustomize {
   }
 
   async apply() {
+    const result = await this.patch();
+    await this.kubectl.apply({ stdin: result, stdout: true });
+  }
+
+  async patch(options: Options = {}) {
     const session = new Session();
     const resources = await this.getResources();
     await session.setResources(resources);
     await session.setKustomization(this.kustomization.spec);
-    const queriedResourcesPath = await session.getWorkdir(
-      Session.queriedResourcesPath
-    );
-    const kustomizationPath = await session.getWorkdir(
-      Session.kustomizationPath
-    );
-    const result = (await fs.readFile(queriedResourcesPath)).toString();
-    const k = (await fs.readFile(kustomizationPath)).toString();
+    const workdir = await session.getWorkdir();
+    const patched = await this.kustomize({ cwd: workdir, ...options });
     await session.cleanup();
-    console.log(result);
-    console.log(k);
+    return patched.toString();
+  }
+
+  async kustomize(options: Options = {}) {
+    return this.run([], options, () => {});
   }
 
   async run(
     args: string | string[] = [],
     options?: Options,
-    cb: RunCallback = () => {}
+    cb?: RunCallback
   ): Promise<Result> {
     if (!Array.isArray(args)) args = [args];
     return this.kubectl.run(['kustomize', ...args], options, cb);

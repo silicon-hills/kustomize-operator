@@ -32,9 +32,8 @@ export default class Session {
 
   async setKustomization(spec: KustomizationSpec = {}) {
     const kustomizationPath = await this.getWorkdir(Session.kustomizationPath);
-    const resourcesPath = await this.getWorkdir(Session.queriedResourcesPath);
     const kustomization = {
-      resources: [resourcesPath],
+      resources: [Session.queriedResourcesPath],
       ...(spec.commonLabels ? { commonLabels: spec.commonLabels } : {}),
       ...(spec.crds ? { crds: spec.crds } : {}),
       ...(spec.images ? { images: spec.images } : {}),

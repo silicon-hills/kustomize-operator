@@ -15,7 +15,7 @@ export default class Kubectl extends Command {
   ) {
     let { stdin } = applyOptions as Partial<GetOptions>;
     if (typeof applyOptions === 'string') stdin = applyOptions;
-    const { file } = {
+    const { file, stdout } = {
       ...((stdin ? { file: '-' } : {}) as Partial<GetOptions>),
       ...(typeof applyOptions === 'string'
         ? ({} as Partial<GetOptions>)
@@ -24,12 +24,16 @@ export default class Kubectl extends Command {
     return this.run(
       ['apply', ...(file ? ['-f', file] : [])],
       options,
-      stdin
-        ? (p: ExecaChildProcess) => {
-            const stream = Readable.from([stdin]);
-            if (p.stdin) stream.pipe(p.stdin);
-          }
-        : undefined
+      (p: ExecaChildProcess) => {
+        if (stdin) {
+          const stream = Readable.from([stdin]);
+          if (p.stdin) stream.pipe(p.stdin);
+        }
+        if (stdout) {
+          p.stderr?.pipe(process.stderr);
+          p.stdout?.pipe(process.stdout);
+        }
+      }
     );
   }
 
@@ -37,7 +41,7 @@ export default class Kubectl extends Command {
     getOptions: Partial<GetOptions> | string = {},
     options?: Options
   ): Promise<T> {
-    let { stdin } = getOptions as Partial<GetOptions>;
+    let { stdin, stdout } = getOptions as Partial<GetOptions>;
     if (typeof getOptions === 'string') stdin = getOptions;
     const { file, output, ignoreNotFound } = {
       ignoreNotFound: true,
@@ -54,12 +58,16 @@ export default class Kubectl extends Command {
         ...(ignoreNotFound ? ['--ignore-not-found'] : [])
       ],
       options,
-      stdin
-        ? (p: ExecaChildProcess) => {
-            const stream = Readable.from([stdin]);
-            if (p.stdin) stream.pipe(p.stdin);
-          }
-        : undefined
+      (p: ExecaChildProcess) => {
+        if (stdin) {
+          const stream = Readable.from([stdin]);
+          if (p.stdin) stream.pipe(p.stdin);
+        }
+        if (stdout) {
+          p.stderr?.pipe(process.stderr);
+          p.stdout?.pipe(process.stdout);
+        }
+      }
     );
   }
 
@@ -69,7 +77,7 @@ export default class Kubectl extends Command {
   ) {
     let { stdin } = deleteOptions as Partial<GetOptions>;
     if (typeof deleteOptions === 'string') stdin = deleteOptions;
-    const { file } = {
+    const { file, stdout } = {
       ...((stdin ? { file: '-' } : {}) as Partial<GetOptions>),
       ...(typeof deleteOptions === 'string'
         ? ({} as Partial<GetOptions>)
@@ -78,12 +86,16 @@ export default class Kubectl extends Command {
     return this.run(
       ['delete', ...(file ? ['-f', file] : [])],
       options,
-      stdin
-        ? (p: ExecaChildProcess) => {
-            const stream = Readable.from([stdin]);
-            if (p.stdin) stream.pipe(p.stdin);
-          }
-        : undefined
+      (p: ExecaChildProcess) => {
+        if (stdin) {
+          const stream = Readable.from([stdin]);
+          if (p.stdin) stream.pipe(p.stdin);
+        }
+        if (stdout) {
+          p.stderr?.pipe(process.stderr);
+          p.stdout?.pipe(process.stdout);
+        }
+      }
     );
   }
 
@@ -97,14 +109,19 @@ export interface GetOptions {
   ignoreNotFound?: boolean;
   output?: Output;
   stdin?: string;
+  stdout?: boolean;
 }
 
 export interface ApplyOptions {
   file?: string;
+  stdin?: string;
+  stdout?: boolean;
 }
 
 export interface DeleteOptions {
   file?: string;
+  stdin?: string;
+  stdout?: boolean;
 }
 
 export enum Output {
