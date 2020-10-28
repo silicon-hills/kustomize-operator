@@ -10,12 +10,27 @@ export default class Kubectl extends Command {
   }
 
   async apply(
-    applyOptions: Partial<ApplyOptions> = {},
-    options?: Options,
-    cb: RunCallback = () => {}
+    applyOptions: Partial<ApplyOptions> | string = {},
+    options?: Options
   ) {
-    const { file } = { ...applyOptions };
-    return this.run(['apply', ...(file ? ['-f', file] : [])], options, cb);
+    let { stdin } = applyOptions as Partial<GetOptions>;
+    if (typeof applyOptions === 'string') stdin = applyOptions;
+    const { file } = {
+      ...((stdin ? { file: '-' } : {}) as Partial<GetOptions>),
+      ...(typeof applyOptions === 'string'
+        ? ({} as Partial<GetOptions>)
+        : applyOptions)
+    };
+    return this.run(
+      ['apply', ...(file ? ['-f', file] : [])],
+      options,
+      stdin
+        ? (p: ExecaChildProcess) => {
+            const stream = Readable.from([stdin]);
+            if (p.stdin) stream.pipe(p.stdin);
+          }
+        : undefined
+    );
   }
 
   async get<T = any>(
@@ -49,12 +64,27 @@ export default class Kubectl extends Command {
   }
 
   async delete(
-    deleteOptions: Partial<DeleteOptions> = {},
-    options?: Options,
-    cb: RunCallback = () => {}
+    deleteOptions: Partial<DeleteOptions> | string = {},
+    options?: Options
   ) {
-    const { file } = { ...deleteOptions };
-    return this.run(['delete', ...(file ? ['-f', file] : [])], options, cb);
+    let { stdin } = deleteOptions as Partial<GetOptions>;
+    if (typeof deleteOptions === 'string') stdin = deleteOptions;
+    const { file } = {
+      ...((stdin ? { file: '-' } : {}) as Partial<GetOptions>),
+      ...(typeof deleteOptions === 'string'
+        ? ({} as Partial<GetOptions>)
+        : deleteOptions)
+    };
+    return this.run(
+      ['delete', ...(file ? ['-f', file] : [])],
+      options,
+      stdin
+        ? (p: ExecaChildProcess) => {
+            const stream = Readable.from([stdin]);
+            if (p.stdin) stream.pipe(p.stdin);
+          }
+        : undefined
+    );
   }
 
   async kustomize(args: string[] = []) {

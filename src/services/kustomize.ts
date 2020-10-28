@@ -43,12 +43,18 @@ export default class Kustomize {
     const session = new Session();
     const resources = await this.getResources();
     await session.setResources(resources);
+    await session.setKustomization(this.kustomization.spec);
     const queriedResourcesPath = await session.getWorkdir(
       Session.queriedResourcesPath
     );
+    const kustomizationPath = await session.getWorkdir(
+      Session.kustomizationPath
+    );
     const result = (await fs.readFile(queriedResourcesPath)).toString();
+    const k = (await fs.readFile(kustomizationPath)).toString();
     await session.cleanup();
     console.log(result);
+    console.log(k);
   }
 
   async run(
