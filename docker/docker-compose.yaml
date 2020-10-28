@@ -5,4 +5,4 @@ services:
     container_name: ${NAME}
     image: ${IMAGE}:latest
     environment:
-      DEBUG_OPERATOR: 'false'
+      DEBUG_OPERATOR: 'true'
