@@ -100,6 +100,7 @@ export interface KustomizationSpec {
   patchesJson6902?: PatchJson6902[]; // []kustomizeTypes.PatchJson6902 `json:"patchesJson6902,omitempty" yaml:"patchesJson6902,omitempty"`
   patchesStrategicMerge?: PatchStrategicMerge[]; // []kustomizeTypes.PatchStrategicMerge `json:"patchesStrategicMerge,omitempty" yaml:"patchesStrategicMerge,omitempty"`
   replicas?: Replica[]; // []kustomizeTypes.Replica `json:"replicas,omitempty" yaml:"replicas,omitempty"`
+  resources?: Target[]; // []kustomizeTypes.Target `json:"resources,omitempty" yaml:"resources,omitempty"`
   secretGenerator?: SecretArgs[]; // []kustomizeTypes.SecretArgs `json:"secretGenerator,omitempty" yaml:"secretGenerator,omitempty"`
   vars?: Var[]; // []kustomizeTypes.Var `json:"vars,omitempty" yaml:"vars,omitempty"`
 }

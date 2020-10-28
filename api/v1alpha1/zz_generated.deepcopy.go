@@ -147,6 +147,11 @@ func (in *KustomizationSpec) DeepCopyInto(out *KustomizationSpec) {
 		*out = make([]types.Replica, len(*in))
 		copy(*out, *in)
 	}
+	if in.Resources != nil {
+		in, out := &in.Resources, &out.Resources
+		*out = make([]types.Target, len(*in))
+		copy(*out, *in)
+	}
 	if in.SecretGenerator != nil {
 		in, out := &in.SecretGenerator, &out.SecretGenerator
 		*out = make([]types.SecretArgs, len(*in))

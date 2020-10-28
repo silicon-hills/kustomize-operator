@@ -289,6 +289,33 @@ spec:
                 - count
                 type: object
               type: array
+            resources:
+              description: Resources refers to Kubernetes resources under the purview
+                of this kustomization. Resources should use the raw name of the object
+                (the name specified in its YAML, before addition of a namePrefix and
+                a nameSuffix).
+              items:
+                description: Target refers to a kubernetes object by Group, Version,
+                  Kind and Name gvk.Gvk contains Group, Version and Kind APIVersion
+                  is added to keep the backward compatibility of using ObjectReference
+                  for Var.ObjRef
+                properties:
+                  apiVersion:
+                    type: string
+                  group:
+                    type: string
+                  kind:
+                    type: string
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                  version:
+                    type: string
+                required:
+                - name
+                type: object
+              type: array
             secretGenerator:
               description: SecretGenerator is a list of secrets to generate from local
                 data (one secret per list item). The resulting resource is a normal
