@@ -112,6 +112,6 @@ export interface KustomizationSpec {
   vars?: Var[]; // []kustomizeTypes.Var `json:"vars,omitempty" yaml:"vars,omitempty"`
 }
 
-export interface Kustomization extends KubernetesObject {
+export interface KustomizationResource extends KubernetesObject {
   spec?: KustomizationSpec;
 }

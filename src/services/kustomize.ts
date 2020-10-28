@@ -3,14 +3,14 @@ import {
   KubernetesListObject,
   KubernetesObject
 } from '@kubernetes/client-node';
-import { Selector, Kustomization } from '~/types';
 import Kubectl, { Output } from './kubectl';
-import { RunCallback, Result } from './command';
 import Session from './session';
+import { RunCallback, Result } from './command';
+import { Selector, KustomizationResource } from '~/types';
 import { resources2String } from './util';
 
 export default class Kustomize {
-  constructor(private kustomization: Kustomization) {}
+  constructor(private kustomizationResource: KustomizationResource) {}
 
   private kubectl = new Kubectl();
 
@@ -21,14 +21,16 @@ export default class Kustomize {
   // TODO: improve selector match
   async getResources() {
     const resourcesStr = resources2String(
-      (this.kustomization.spec?.resources || []).map((resource: Selector) => ({
-        apiVersion: resource.version,
-        kind: resource.kind,
-        metadata: {
-          name: resource.name,
-          ...(resource.namespace ? { namespace: resource.namespace } : {})
-        }
-      }))
+      (this.kustomizationResource.spec?.resources || []).map(
+        (resource: Selector) => ({
+          apiVersion: resource.version,
+          kind: resource.kind,
+          metadata: {
+            name: resource.name,
+            ...(resource.namespace ? { namespace: resource.namespace } : {})
+          }
+        })
+      )
     );
     return (
       await this.kubectl.get<KubernetesListObject<KubernetesObject>>({
@@ -47,7 +49,7 @@ export default class Kustomize {
     const session = new Session();
     const resources = await this.getResources();
     await session.setResources(resources);
-    await session.setKustomization(this.kustomization.spec);
+    await session.setKustomization(this.kustomizationResource.spec);
     const workdir = await session.getWorkdir();
     const patched = await this.kustomize({ cwd: workdir, ...options });
     await session.cleanup();

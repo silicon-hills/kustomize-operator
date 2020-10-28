@@ -4,11 +4,11 @@ metadata:
   name: kustomization-sample
 spec:
   commonLabels:
-    chip: chop
+    howdy: texas
   resources:
     - name: hello
       kind: ConfigMap
       version: v1
-    - name: helloz
+    - name: world
       kind: ConfigMap
       version: v1
