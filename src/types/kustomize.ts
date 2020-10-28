@@ -1,3 +1,4 @@
+import { KubernetesObject } from '@kubernetes/client-node';
 import { HashMap } from '.';
 
 export interface Gvk {
@@ -109,4 +110,8 @@ export interface KustomizationSpec {
   resources?: Selector[]; // []*kustomizeTypes.Selector `json:"resources,omitempty" yaml:"resources,omitempty"`
   secretGenerator?: SecretArgs[]; // []kustomizeTypes.SecretArgs `json:"secretGenerator,omitempty" yaml:"secretGenerator,omitempty"`
   vars?: Var[]; // []kustomizeTypes.Var `json:"vars,omitempty" yaml:"vars,omitempty"`
+}
+
+export interface Kustomization extends KubernetesObject {
+  spec?: KustomizationSpec;
 }

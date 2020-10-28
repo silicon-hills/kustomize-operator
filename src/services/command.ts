@@ -15,21 +15,21 @@ export default abstract class Command {
     };
   }
 
-  async run(
+  async run<T = Result>(
     args: string | string[] = [],
     options: Options = {},
     cb: RunCallback = (p: ExecaChildProcess) => {
       p.stderr?.pipe(process.stderr);
       p.stdout?.pipe(process.stdout);
     }
-  ): Promise<Result> {
+  ): Promise<T> {
     if (this.config.debug) {
       console.debug('$', [this.command, ...args].join(' '));
     }
     if (!Array.isArray(args)) args = [args];
     const p = execa(this.command, args, options);
     cb(p);
-    return this.smartParse(await p);
+    return this.smartParse(await p) as T;
   }
 
   smartParse(result: ExecaReturnValue<string>): Result {

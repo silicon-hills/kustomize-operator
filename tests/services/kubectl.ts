@@ -1,7 +1,7 @@
 import path from 'path';
 import Kubectl, { Output } from '~/services/kubectl';
 
-describe('new Kubectl()', () => {
+describe.skip('new Kubectl()', () => {
   let kubectl: Kubectl;
   beforeAll(() => {
     kubectl = new Kubectl();

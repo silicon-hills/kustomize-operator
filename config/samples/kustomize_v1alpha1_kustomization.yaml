@@ -3,5 +3,10 @@ kind: Kustomization
 metadata:
   name: kustomization-sample
 spec:
-  # Add fields here
-  foo: bar
+  resources:
+    - name: hello
+      kind: ConfigMap
+      version: v1
+    - name: helloz
+      kind: ConfigMap
+      version: v1

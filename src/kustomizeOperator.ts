@@ -1,4 +1,5 @@
 import Operator from '@dot-i/k8s-operator';
+import k8s from '@kubernetes/client-node';
 import YAML from 'yaml';
 import fs from 'fs-extra';
 import ora from 'ora';

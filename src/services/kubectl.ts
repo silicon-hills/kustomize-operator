@@ -1,4 +1,5 @@
-import { Options } from 'execa';
+import { ExecaChildProcess, Options } from 'execa';
+import { Readable } from 'stream';
 import Command, { RunCallback } from './command';
 
 export default class Kubectl extends Command {
@@ -17,16 +18,33 @@ export default class Kubectl extends Command {
     return this.run(['apply', ...(file ? ['-f', file] : [])], options, cb);
   }
 
-  async get(
-    getOptions: Partial<GetOptions> = {},
-    options?: Options,
-    cb: RunCallback = () => {}
-  ) {
-    const { file, output } = { ...getOptions };
-    return this.run(
-      ['get', ...(file ? ['-f', file] : []), ...(output ? ['-o', output] : [])],
+  async get<T = any>(
+    getOptions: Partial<GetOptions> | string = {},
+    options?: Options
+  ): Promise<T> {
+    let { stdin } = getOptions as Partial<GetOptions>;
+    if (typeof getOptions === 'string') stdin = getOptions;
+    const { file, output, ignoreNotFound } = {
+      ignoreNotFound: true,
+      ...((stdin ? { file: '-' } : {}) as Partial<GetOptions>),
+      ...(typeof getOptions === 'string'
+        ? ({} as Partial<GetOptions>)
+        : getOptions)
+    };
+    return this.run<T>(
+      [
+        'get',
+        ...(file ? ['-f', file] : []),
+        ...(output ? ['-o', output] : []),
+        ...(ignoreNotFound ? ['--ignore-not-found'] : [])
+      ],
       options,
-      cb
+      stdin
+        ? (p: ExecaChildProcess) => {
+            const stream = Readable.from([stdin]);
+            if (p.stdin) stream.pipe(p.stdin);
+          }
+        : undefined
     );
   }
 
@@ -46,7 +64,9 @@ export default class Kubectl extends Command {
 
 export interface GetOptions {
   file?: string;
+  ignoreNotFound?: boolean;
   output?: Output;
+  stdin?: string;
 }
 
 export interface ApplyOptions {
