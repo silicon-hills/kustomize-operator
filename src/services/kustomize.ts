@@ -20,7 +20,7 @@ export default class Kustomize {
 
   // TODO: improve selector match
   async getResources() {
-    let { namespace } = this.kustomizationResource.metadata || {};
+    const { namespace } = this.kustomizationResource.metadata || {};
     if (!namespace) return [];
     const resourcesStr = resources2String(
       (this.kustomizationResource.spec?.resources || []).map(
