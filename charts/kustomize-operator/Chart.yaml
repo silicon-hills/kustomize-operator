@@ -4,7 +4,7 @@ home: https://codejam.ninja
 icon: ''
 version: 0.0.1
 appVersion: 0.0.1
-description: '> operator to kustomize kubernetes resources'
+description: 'operator to kustomize kubernetes resources'
 keywords:
   - silicon
   - operator
