@@ -33,21 +33,25 @@ export default class Kustomize {
       )
     );
     return (
-      await this.kubectl.get<KubernetesListObject<KubernetesObject>>({
-        stdin: resourcesStr,
-        output: Output.Json
-      })
-    ).items;
+      (
+        await this.kubectl.get<KubernetesListObject<KubernetesObject>>({
+          stdin: resourcesStr,
+          output: Output.Json
+        })
+      )?.items || []
+    );
   }
 
   async apply() {
     const result = await this.patch();
+    if (!result) return;
     await this.kubectl.apply({ stdin: result, stdout: true });
   }
 
   async patch(options: Options = {}) {
     const session = new Session();
     const resources = await this.getResources();
+    if (!resources.length) return;
     await session.setResources(resources);
     await session.setKustomization(this.kustomizationResource.spec);
     const workdir = await session.getWorkdir();
