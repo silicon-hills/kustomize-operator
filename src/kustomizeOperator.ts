@@ -14,18 +14,24 @@
  * limitations under the License.
  */
 
-import Operator, {
-  ResourceEventType,
-  ResourceMetaImpl
-} from '@dot-i/k8s-operator';
+import * as k8s from '@kubernetes/client-node';
 import YAML from 'yaml';
 import fs from 'fs-extra';
 import ora from 'ora';
 import path from 'path';
+import Operator, {
+  ResourceEventType,
+  ResourceMetaImpl
+} from '@dot-i/k8s-operator';
 import Logger from './logger';
 import { Config } from './config';
 import { Kustomize } from './services';
-import { OperatorFrameworkProject, KustomizationResource } from './types';
+import {
+  KustomizationResource,
+  KustomizationStatus,
+  KustomizationStatusPhase,
+  OperatorFrameworkProject
+} from './types';
 
 export const project: OperatorFrameworkProject = YAML.parse(
   fs.readFileSync(path.resolve(__dirname, '../PROJECT')).toString()
@@ -36,31 +42,91 @@ export default class KustomizeOperator extends Operator {
 
   spinner = ora();
 
+  customObjectsApi: k8s.CustomObjectsApi;
+
   constructor(protected config: Config, protected log = new Logger()) {
     super(log);
+    this.customObjectsApi = this.kubeConfig.makeApiClient(k8s.CustomObjectsApi);
   }
 
   protected async addedKustomization(
     resource: KustomizationResource,
     _meta: ResourceMetaImpl
   ) {
-    const kustomize = new Kustomize(resource);
-    await kustomize.apply();
+    try {
+      await this.updateStatus(
+        {
+          message: 'creating kustomization',
+          phase: KustomizationStatusPhase.Pending,
+          ready: false
+        },
+        resource
+      );
+      const kustomize = new Kustomize(resource);
+      await kustomize.apply();
+      await this.updateStatus(
+        {
+          message: 'created kustomization',
+          phase: KustomizationStatusPhase.Succeeded,
+          ready: true
+        },
+        resource
+      );
+    } catch (err) {
+      await this.updateStatus(
+        {
+          message: err.message?.toString() || '',
+          phase: KustomizationStatusPhase.Failed,
+          ready: false
+        },
+        resource
+      );
+      throw err;
+    }
   }
 
   protected async modifiedKustomization(
     resource: KustomizationResource,
     _meta: ResourceMetaImpl
   ) {
-    const kustomize = new Kustomize(resource);
-    await kustomize.apply();
+    try {
+      await this.updateStatus(
+        {
+          message: 'modifying kustomization',
+          phase: KustomizationStatusPhase.Pending,
+          ready: false
+        },
+        resource
+      );
+
+      const kustomize = new Kustomize(resource);
+      await kustomize.apply();
+      await this.updateStatus(
+        {
+          message: 'modified kustomization',
+          phase: KustomizationStatusPhase.Succeeded,
+          ready: true
+        },
+        resource
+      );
+    } catch (err) {
+      await this.updateStatus(
+        {
+          message: err.message?.toString() || '',
+          phase: KustomizationStatusPhase.Failed,
+          ready: false
+        },
+        resource
+      );
+      throw err;
+    }
   }
 
   protected async init() {
     this.watchResource(
       KustomizeOperator.resource2Group(ResourceGroup.Kustomize),
       ResourceVersion.V1alpha1,
-      KustomizeOperator.kind2plural(ResourceKind.Kustomization),
+      KustomizeOperator.kind2Plural(ResourceKind.Kustomization),
       async (e) => {
         try {
           if (e.type === ResourceEventType.Deleted) return;
@@ -88,11 +154,38 @@ export default class KustomizeOperator extends Operator {
     ).catch(console.error);
   }
 
+  async updateStatus(
+    status: KustomizationStatus,
+    resource: KustomizationResource
+  ): Promise<void> {
+    if (!resource.metadata?.name || !resource.metadata.namespace) return;
+    await this.customObjectsApi.patchNamespacedCustomObjectStatus(
+      KustomizeOperator.resource2Group(ResourceGroup.Kustomize),
+      ResourceVersion.V1alpha1,
+      resource.metadata.namespace,
+      KustomizeOperator.kind2Plural(ResourceKind.Kustomization),
+      resource.metadata.name,
+      [
+        {
+          op: 'replace',
+          path: '/status',
+          value: status
+        }
+      ],
+      undefined,
+      undefined,
+      undefined,
+      {
+        headers: { 'Content-Type': 'application/json-patch+json' }
+      }
+    );
+  }
+
   static resource2Group(group: string) {
     return `${group}.${project.domain}`;
   }
 
-  static kind2plural(kind: string) {
+  static kind2Plural(kind: string) {
     const lowercasedKind = kind.toLowerCase();
     if (lowercasedKind[lowercasedKind.length - 1] === 's') {
       return lowercasedKind;

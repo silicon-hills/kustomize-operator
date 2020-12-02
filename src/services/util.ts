@@ -22,3 +22,12 @@ export function resources2String(resources: KubernetesObject[]): string {
     .map((resource: KubernetesObject) => YAML.stringify(resource))
     .join('---\n');
 }
+
+export function string2Resources(resourcesStr: string): KubernetesObject[] {
+  return `\n${resourcesStr}\n`
+    .split(/\n---+\n/)
+    .map(
+      (resourceStr: string) =>
+        YAML.parse(resourceStr.trim()) as KubernetesObject
+    );
+}

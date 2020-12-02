@@ -131,6 +131,13 @@ export interface KustomizationSpec {
 
 export interface KustomizationResource extends KubernetesObject {
   spec?: KustomizationSpec;
+  status?: KustomizationStatus;
+}
+
+export interface KustomizationStatus {
+  message?: string; // string `json:"message,omitempty"`
+  phase?: KustomizationStatusPhase; // string `json:"phase,omitempty"`
+  ready?: boolean; // bool `json:"ready,omitempty"`
 }
 
 export interface TransformerConfig {
@@ -155,3 +162,10 @@ export interface FieldSpec extends Gvk {
 }
 
 // export interface NbrSlice {}
+
+export enum KustomizationStatusPhase {
+  Failed = 'Failed',
+  Pending = 'Pending',
+  Succeeded = 'Succeeded',
+  Unknown = 'Unknown'
+}

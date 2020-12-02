@@ -123,8 +123,14 @@ type TransformerConfig struct {
 
 // KustomizationStatus defines the observed state of Kustomization
 type KustomizationStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+        // kustomization message
+        Message string `json:"message,omitempty"`
+
+        // kustomization phase (Pending, Succeeded, Failed, Unknown)
+        Phase string `json:"phase,omitempty"`
+
+        // kustomization ready
+        Ready bool `json:"ready,omitempty"`
 }
 
 // +kubebuilder:object:root=true

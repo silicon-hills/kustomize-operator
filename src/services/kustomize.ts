@@ -23,7 +23,7 @@ import Kubectl, { Output } from './kubectl';
 import Session from './session';
 import Command, { RunCallback } from './command';
 import { Selector, KustomizationResource } from '~/types';
-import { resources2String } from './util';
+import { resources2String, string2Resources } from './util';
 
 export default class Kustomize extends Command {
   command = 'kustomize';
@@ -41,7 +41,8 @@ export default class Kustomize extends Command {
   // TODO: improve selector match
   async getResources() {
     const { namespace } = this.kustomizationResource.metadata || {};
-    if (!namespace || !this.kustomizationResource.spec?.resources) return [];
+    if (!namespace || !this.kustomizationResource.spec?.resources?.length)
+      return [];
     const resourcesStr = resources2String(
       (this.kustomizationResource.spec?.resources).map(
         (resource: Selector) => ({
@@ -65,22 +66,35 @@ export default class Kustomize extends Command {
   }
 
   async apply() {
-    const result = await this.patch();
-    if (!result) return;
-    console.log('STDIO', result);
-    await this.kubectl.apply({ stdin: result, stdout: true });
+    const resources = (await this.patch())
+      .filter((resource: KubernetesObject) => !!resource)
+      .map((resource: KubernetesObject) => {
+        return {
+          metadata: {
+            name: resource.metadata?.name,
+            namespace: resource.metadata?.namespace
+          },
+          ...resource
+        };
+      });
+    if (!resources.length) return;
+    const resourcesStr = resources2String(resources);
+    await this.kubectl.apply({
+      stdin: resourcesStr,
+      stdout: true
+    });
   }
 
-  async patch(options: Options = {}) {
+  async patch(options: Options = {}): Promise<KubernetesObject[]> {
     const session = new Session();
     const resources = await this.getResources();
-    if (!resources.length) return;
+    if (!resources.length) return [];
     await session.setResources(resources);
     await session.setKustomization(this.kustomizationResource.spec);
     const workdir = await session.getWorkdir();
     const patched = await this.kustomize({ cwd: workdir, ...options });
-    // await session.cleanup();
-    return patched.toString();
+    await session.cleanup();
+    return string2Resources(patched.toString());
   }
 
   async kustomize(options: Options = {}) {
