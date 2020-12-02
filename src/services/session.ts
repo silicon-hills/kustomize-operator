@@ -30,6 +30,8 @@ export default class Session {
 
   public static kustomizationPath = 'kustomization.yaml';
 
+  public static kustomizeConfigPath = 'kustomizeconfig.yaml';
+
   async getWorkdir(...paths: string[]) {
     if (!this._workdir) {
       this._workdir = await fs.mkdtemp(
@@ -48,8 +50,12 @@ export default class Session {
 
   async setKustomization(spec: KustomizationSpec = {}) {
     const kustomizationPath = await this.getWorkdir(Session.kustomizationPath);
+    const kustomizeConfigPath = await this.getWorkdir(
+      Session.kustomizeConfigPath
+    );
     const kustomization = {
       resources: [Session.queriedResourcesPath],
+      configurations: [Session.kustomizeConfigPath],
       ...(spec.commonLabels ? { commonLabels: spec.commonLabels } : {}),
       ...(spec.crds ? { crds: spec.crds } : {}),
       ...(spec.images ? { images: spec.images } : {}),
@@ -78,7 +84,9 @@ export default class Session {
         ? { patchesStrategicMerge: spec.patchesStrategicMerge }
         : {})
     };
+    const kustomizeConfig = spec.configuration || {};
     await fs.writeFile(kustomizationPath, YAML.stringify(kustomization));
+    await fs.writeFile(kustomizeConfigPath, YAML.stringify(kustomizeConfig));
   }
 
   async cleanup() {

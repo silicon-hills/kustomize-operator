@@ -25,12 +25,17 @@ RUN mkdir src && make install
 FROM node:12-alpine
 
 RUN apk add --no-cache \
+  bash \
   curl \
   make
 RUN curl -LO \
   https://storage.googleapis.com/kubernetes-release/release/v1.19.0/bin/linux/amd64/kubectl && \
   chmod +x ./kubectl && \
   mv ./kubectl /usr/local/bin/kubectl
+RUN curl -L \
+  "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" \
+  | bash && \
+  mv ./kustomize /usr/local/bin/kustomize
 
 COPY docker/latest/entrypoint.sh /usr/local/sbin/entrypoint
 

@@ -21,12 +21,16 @@ import {
 } from '@kubernetes/client-node';
 import Kubectl, { Output } from './kubectl';
 import Session from './session';
-import { RunCallback, Result } from './command';
+import Command, { RunCallback } from './command';
 import { Selector, KustomizationResource } from '~/types';
 import { resources2String } from './util';
 
-export default class Kustomize {
-  constructor(private kustomizationResource: KustomizationResource) {}
+export default class Kustomize extends Command {
+  command = 'kustomize';
+
+  constructor(private kustomizationResource: KustomizationResource) {
+    super();
+  }
 
   private kubectl = new Kubectl();
 
@@ -37,9 +41,9 @@ export default class Kustomize {
   // TODO: improve selector match
   async getResources() {
     const { namespace } = this.kustomizationResource.metadata || {};
-    if (!namespace) return [];
+    if (!namespace || !this.kustomizationResource.spec?.resources) return [];
     const resourcesStr = resources2String(
-      (this.kustomizationResource.spec?.resources || []).map(
+      (this.kustomizationResource.spec?.resources).map(
         (resource: Selector) => ({
           apiVersion: resource.version,
           kind: resource.kind,
@@ -63,6 +67,7 @@ export default class Kustomize {
   async apply() {
     const result = await this.patch();
     if (!result) return;
+    console.log('STDIO', result);
     await this.kubectl.apply({ stdin: result, stdout: true });
   }
 
@@ -74,20 +79,11 @@ export default class Kustomize {
     await session.setKustomization(this.kustomizationResource.spec);
     const workdir = await session.getWorkdir();
     const patched = await this.kustomize({ cwd: workdir, ...options });
-    await session.cleanup();
+    // await session.cleanup();
     return patched.toString();
   }
 
   async kustomize(options: Options = {}) {
-    return this.run([], options, () => {});
-  }
-
-  async run(
-    args: string | string[] = [],
-    options?: Options,
-    cb?: RunCallback
-  ): Promise<Result> {
-    if (!Array.isArray(args)) args = [args];
-    return this.kubectl.run(['kustomize', ...args], options, cb);
+    return this.run(['build', '.'], options, () => {});
   }
 }

@@ -21,11 +21,15 @@ import (
         kustomizeTypes "sigs.k8s.io/kustomize/api/types"
 )
 
+
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
 // KustomizationSpec defines the desired state of Kustomization
 type KustomizationSpec struct {
+        // kustomization config
+        Configuration TransformerConfig `json:"configuration,omitempty" yaml:"configuration,omitempty"`
+
 	// CommonAnnotations to add to all objects.
 	CommonAnnotations map[string]string `json:"commonAnnotations,omitempty" yaml:"commonAnnotations,omitempty"`
 
@@ -103,6 +107,18 @@ type KustomizationSpec struct {
 	// spec will be replaced at kustomize build time, after the final
 	// value of the specified field has been determined.
 	Vars []kustomizeTypes.Var `json:"vars,omitempty" yaml:"vars,omitempty"`
+}
+
+type TransformerConfig struct {
+	// NameReference     nbrSlice      `json:"nameReference,omitempty" yaml:"nameReference,omitempty"`
+	CommonAnnotations kustomizeTypes.FsSlice `json:"commonAnnotations,omitempty" yaml:"commonAnnotations,omitempty"`
+	CommonLabels      kustomizeTypes.FsSlice `json:"commonLabels,omitempty" yaml:"commonLabels,omitempty"`
+	Images            kustomizeTypes.FsSlice `json:"images,omitempty" yaml:"images,omitempty"`
+	NamePrefix        kustomizeTypes.FsSlice `json:"namePrefix,omitempty" yaml:"namePrefix,omitempty"`
+	NameSpace         kustomizeTypes.FsSlice `json:"namespace,omitempty" yaml:"namespace,omitempty"`
+	NameSuffix        kustomizeTypes.FsSlice `json:"nameSuffix,omitempty" yaml:"nameSuffix,omitempty"`
+	Replicas          kustomizeTypes.FsSlice `json:"replicas,omitempty" yaml:"replicas,omitempty"`
+	VarReference      kustomizeTypes.FsSlice `json:"varReference,omitempty" yaml:"varReference,omitempty"`
 }
 
 // KustomizationStatus defines the observed state of Kustomization
