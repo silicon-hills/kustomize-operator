@@ -90,11 +90,8 @@ export default class KustomizeOperator extends Operator {
     _meta: ResourceMetaImpl
   ) {
     try {
-      if (
-        resource?.status?.previousPhase !== KustomizationStatusPhase.Succeeded
-      ) {
-        return;
-      }
+      const status = await this.getStatus(resource);
+      if (status?.previousPhase !== KustomizationStatusPhase.Succeeded) return;
       await this.updateStatus(
         {
           message: 'modifying kustomization',
@@ -145,7 +142,6 @@ export default class KustomizeOperator extends Operator {
             }
           }
         } catch (err) {
-          console.log(err);
           this.spinner.fail(
             [
               err.message || '',
@@ -163,6 +159,7 @@ export default class KustomizeOperator extends Operator {
     resource: KustomizationResource
   ): Promise<void> {
     if (!resource.metadata?.name || !resource.metadata.namespace) return;
+    const previousStatus = await this.getStatus(resource);
     await this.customObjectsApi.patchNamespacedCustomObjectStatus(
       KustomizeOperator.resource2Group(ResourceGroup.Kustomize),
       ResourceVersion.V1alpha1,
@@ -175,7 +172,7 @@ export default class KustomizeOperator extends Operator {
           path: '/status',
           value: {
             ...status,
-            previousPhase: resource.status?.phase
+            previousPhase: previousStatus?.phase
           }
         }
       ],
@@ -186,6 +183,22 @@ export default class KustomizeOperator extends Operator {
         headers: { 'Content-Type': 'application/json-patch+json' }
       }
     );
+  }
+
+  async getStatus(
+    resource: KustomizationResource
+  ): Promise<KustomizationStatus | undefined> {
+    if (!resource.metadata?.name || !resource.metadata.namespace) return;
+    const body = (
+      await this.customObjectsApi.getNamespacedCustomObjectStatus(
+        KustomizeOperator.resource2Group(ResourceGroup.Kustomize),
+        ResourceVersion.V1alpha1,
+        resource.metadata.namespace,
+        KustomizeOperator.kind2Plural(ResourceKind.Kustomization),
+        resource.metadata.name
+      )
+    ).body as KustomizationResource;
+    return body.status;
   }
 
   static resource2Group(group: string) {
