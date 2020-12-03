@@ -137,6 +137,7 @@ export interface KustomizationResource extends KubernetesObject {
 export interface KustomizationStatus {
   message?: string; // string `json:"message,omitempty"`
   phase?: KustomizationStatusPhase; // string `json:"phase,omitempty"`
+  previousPhase?: KustomizationStatusPhase; // string `json:"previousPhase,omitempty"`
   ready?: boolean; // bool `json:"ready,omitempty"`
 }
 

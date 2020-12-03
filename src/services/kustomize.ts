@@ -46,7 +46,9 @@ export default class Kustomize extends Command {
     const resourcesStr = resources2String(
       (this.kustomizationResource.spec?.resources).map(
         (resource: Selector) => ({
-          apiVersion: resource.version,
+          apiVersion: `${resource.group ? `${resource.group}/` : ''}${
+            resource.version
+          }`,
           kind: resource.kind,
           metadata: {
             name: resource.name,

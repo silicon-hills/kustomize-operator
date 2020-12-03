@@ -129,6 +129,9 @@ type KustomizationStatus struct {
         // kustomization phase (Pending, Succeeded, Failed, Unknown)
         Phase string `json:"phase,omitempty"`
 
+        // kustomization previous phase (Pending, Succeeded, Failed, Unknown)
+        PreviousPhase string `json:"previousPhase,omitempty"`
+
         // kustomization ready
         Ready bool `json:"ready,omitempty"`
 }

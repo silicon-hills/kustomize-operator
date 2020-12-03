@@ -90,6 +90,11 @@ export default class KustomizeOperator extends Operator {
     _meta: ResourceMetaImpl
   ) {
     try {
+      if (
+        resource?.status?.previousPhase !== KustomizationStatusPhase.Succeeded
+      ) {
+        return;
+      }
       await this.updateStatus(
         {
           message: 'modifying kustomization',
@@ -98,7 +103,6 @@ export default class KustomizeOperator extends Operator {
         },
         resource
       );
-
       const kustomize = new Kustomize(resource);
       await kustomize.apply();
       await this.updateStatus(
@@ -169,7 +173,10 @@ export default class KustomizeOperator extends Operator {
         {
           op: 'replace',
           path: '/status',
-          value: status
+          value: {
+            ...status,
+            previousPhase: resource.status?.phase
+          }
         }
       ],
       undefined,
