@@ -22,7 +22,7 @@ import {
 import Kubectl, { Output } from './kubectl';
 import Session from './session';
 import Command, { RunCallback } from './command';
-import { Selector, KustomizationResource } from '~/types';
+import { Selector, KustomizationResource, ResourceKind } from '~/types';
 import { resources2String, string2Resources } from './util';
 
 export default class Kustomize extends Command {
@@ -69,8 +69,12 @@ export default class Kustomize extends Command {
 
   async apply() {
     const resources = (await this.patch())
-      .filter((resource: KubernetesObject) => !!resource)
+      .filter(
+        (resource: KubernetesObject) =>
+          resource.kind !== ResourceKind.Kustomization
+      )
       .map((resource: KubernetesObject) => {
+        console.log('resourceKind', resource.kind);
         return {
           metadata: {
             name: resource.metadata?.name,

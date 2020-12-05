@@ -1,6 +1,6 @@
 {
   "name": "kustomize-operator",
-  "version": "0.0.4",
+  "version": "0.0.6",
   "description": "operator to kustomize kubernetes resources",
   "keywords": [
     "kustomize-operator"
@@ -50,7 +50,7 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.12.1",
-    "@dot-i/k8s-operator": "^1.0.15",
+    "@dot-i/k8s-operator": "^1.0.17",
     "@kubernetes/client-node": "^0.12.3",
     "@operators/helm2cattle": "^0.0.3",
     "@operators/velero-schedule-replicator": "^0.0.2",

@@ -26,11 +26,15 @@ import Operator, {
 import Logger from './logger';
 import { Config } from './config';
 import { Kustomize } from './services';
+import ResourceTracker from './resourceTracker';
 import {
   KustomizationResource,
   KustomizationStatus,
   KustomizationStatusPhase,
-  OperatorFrameworkProject
+  OperatorFrameworkProject,
+  ResourceGroup,
+  ResourceKind,
+  ResourceVersion
 } from './types';
 
 export const project: OperatorFrameworkProject = YAML.parse(
@@ -44,6 +48,8 @@ export default class KustomizeOperator extends Operator {
 
   customObjectsApi: k8s.CustomObjectsApi;
 
+  resourceTracker = new ResourceTracker<KustomizationResource>();
+
   constructor(protected config: Config, protected log = new Logger()) {
     super(log);
     this.customObjectsApi = this.kubeConfig.makeApiClient(k8s.CustomObjectsApi);
@@ -51,7 +57,8 @@ export default class KustomizeOperator extends Operator {
 
   protected async addedKustomization(
     resource: KustomizationResource,
-    _meta: ResourceMetaImpl
+    _meta: ResourceMetaImpl,
+    _oldResource?: KustomizationResource
   ) {
     try {
       await this.updateStatus(
@@ -87,11 +94,13 @@ export default class KustomizeOperator extends Operator {
 
   protected async modifiedKustomization(
     resource: KustomizationResource,
-    _meta: ResourceMetaImpl
+    _meta: ResourceMetaImpl,
+    oldResource?: KustomizationResource
   ) {
+    if (resource.metadata?.generation === oldResource?.metadata?.generation) {
+      return;
+    }
     try {
-      const status = await this.getStatus(resource);
-      if (status?.previousPhase !== KustomizationStatusPhase.Succeeded) return;
       await this.updateStatus(
         {
           message: 'modifying kustomization',
@@ -129,15 +138,23 @@ export default class KustomizeOperator extends Operator {
       ResourceVersion.V1alpha1,
       KustomizeOperator.kind2Plural(ResourceKind.Kustomization),
       async (e) => {
+        const {
+          oldResource,
+          newResource
+        } = this.resourceTracker.rotateResource(e.object);
         try {
           if (e.type === ResourceEventType.Deleted) return;
           switch (e.type) {
             case ResourceEventType.Added: {
-              await this.addedKustomization(e.object, e.meta);
+              await this.addedKustomization(newResource, e.meta, oldResource);
               break;
             }
             case ResourceEventType.Modified: {
-              await this.modifiedKustomization(e.object, e.meta);
+              await this.modifiedKustomization(
+                newResource,
+                e.meta,
+                oldResource
+              );
               break;
             }
           }
@@ -158,8 +175,8 @@ export default class KustomizeOperator extends Operator {
     status: KustomizationStatus,
     resource: KustomizationResource
   ): Promise<void> {
+    this.setResourceStatus;
     if (!resource.metadata?.name || !resource.metadata.namespace) return;
-    const previousStatus = await this.getStatus(resource);
     await this.customObjectsApi.patchNamespacedCustomObjectStatus(
       KustomizeOperator.resource2Group(ResourceGroup.Kustomize),
       ResourceVersion.V1alpha1,
@@ -170,10 +187,7 @@ export default class KustomizeOperator extends Operator {
         {
           op: 'replace',
           path: '/status',
-          value: {
-            ...status,
-            previousPhase: previousStatus?.phase
-          }
+          value: status
         }
       ],
       undefined,
@@ -183,22 +197,6 @@ export default class KustomizeOperator extends Operator {
         headers: { 'Content-Type': 'application/json-patch+json' }
       }
     );
-  }
-
-  async getStatus(
-    resource: KustomizationResource
-  ): Promise<KustomizationStatus | undefined> {
-    if (!resource.metadata?.name || !resource.metadata.namespace) return;
-    const body = (
-      await this.customObjectsApi.getNamespacedCustomObjectStatus(
-        KustomizeOperator.resource2Group(ResourceGroup.Kustomize),
-        ResourceVersion.V1alpha1,
-        resource.metadata.namespace,
-        KustomizeOperator.kind2Plural(ResourceKind.Kustomization),
-        resource.metadata.name
-      )
-    ).body as KustomizationResource;
-    return body.status;
   }
 
   static resource2Group(group: string) {
@@ -212,16 +210,4 @@ export default class KustomizeOperator extends Operator {
     }
     return `${lowercasedKind}s`;
   }
-}
-
-export enum ResourceGroup {
-  Kustomize = 'kustomize'
-}
-
-export enum ResourceKind {
-  Kustomization = 'Kustomization'
-}
-
-export enum ResourceVersion {
-  V1alpha1 = 'v1alpha1'
 }

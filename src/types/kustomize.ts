@@ -135,9 +135,9 @@ export interface KustomizationResource extends KubernetesObject {
 }
 
 export interface KustomizationStatus {
+  lastUpdateTime?: string; // string `json:"lastUpdateTime,omitempty"`
   message?: string; // string `json:"message,omitempty"`
   phase?: KustomizationStatusPhase; // string `json:"phase,omitempty"`
-  previousPhase?: KustomizationStatusPhase; // string `json:"previousPhase,omitempty"`
   ready?: boolean; // bool `json:"ready,omitempty"`
 }
 
@@ -169,4 +169,16 @@ export enum KustomizationStatusPhase {
   Pending = 'Pending',
   Succeeded = 'Succeeded',
   Unknown = 'Unknown'
+}
+
+export enum ResourceGroup {
+  Kustomize = 'kustomize'
+}
+
+export enum ResourceKind {
+  Kustomization = 'Kustomization'
+}
+
+export enum ResourceVersion {
+  V1alpha1 = 'v1alpha1'
 }
