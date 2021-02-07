@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import ora from 'ora';
 import { Options } from 'execa';
 import {
   KubernetesListObject,
@@ -25,12 +26,16 @@ import Command, { RunCallback } from './command';
 import { Selector, KustomizationResource, ResourceKind } from '~/types';
 import { resources2String, string2Resources } from './util';
 
+const logger = console;
+
 export default class Kustomize extends Command {
   command = 'kustomize';
 
   constructor(private kustomizationResource: KustomizationResource) {
     super();
   }
+
+  private spinner = ora();
 
   private kubectl = new Kubectl();
 
@@ -39,10 +44,11 @@ export default class Kustomize extends Command {
   }
 
   // TODO: improve selector match
-  async getResources() {
+  async getResources(): Promise<KubernetesObject[]> {
     const { namespace } = this.kustomizationResource.metadata || {};
-    if (!namespace || !this.kustomizationResource.spec?.resources?.length)
+    if (!namespace || !this.kustomizationResource.spec?.resources?.length) {
       return [];
+    }
     const resourcesStr = resources2String(
       (this.kustomizationResource.spec?.resources).map(
         (resource: Selector) => ({
@@ -74,7 +80,6 @@ export default class Kustomize extends Command {
           resource.kind !== ResourceKind.Kustomization
       )
       .map((resource: KubernetesObject) => {
-        console.log('resourceKind', resource.kind);
         return {
           metadata: {
             name: resource.metadata?.name,
@@ -91,16 +96,50 @@ export default class Kustomize extends Command {
     });
   }
 
-  async patch(options: Options = {}): Promise<KubernetesObject[]> {
-    const session = new Session();
-    const resources = await this.getResources();
-    if (!resources.length) return [];
-    await session.setResources(resources);
-    await session.setKustomization(this.kustomizationResource.spec);
-    const workdir = await session.getWorkdir();
-    const patched = await this.kustomize({ cwd: workdir, ...options });
-    await session.cleanup();
-    return string2Resources(patched.toString());
+  async patch(
+    options: Options = {},
+    timeLeft?: number
+  ): Promise<KubernetesObject[]> {
+    const retryTimeout =
+      this.kustomizationResource?.spec?.retryTimeout || 60000;
+    if (typeof timeLeft !== 'number') timeLeft = retryTimeout;
+    try {
+      const session = new Session();
+      const resources = await this.getResources();
+      if (
+        resources.length <
+        (this.kustomizationResource?.spec?.resources || []).length
+      ) {
+        // TODO: improve error message
+        throw new Error(
+          `failed to find some resources for kustomizations.kustomize.siliconhills.dev/${this.kustomizationResource?.metadata?.name} in namespace ${this.kustomizationResource?.metadata?.namespace}`
+        );
+      }
+      if (!resources.length) return [];
+      await session.setResources(resources);
+      await session.setKustomization(this.kustomizationResource.spec);
+      const workdir = await session.getWorkdir();
+      const patched = await this.kustomize({ cwd: workdir, ...options });
+      await session.cleanup();
+      const result = string2Resources(patched.toString());
+
+      this.spinner.succeed(
+        `applied patches for kustomizations.kustomize.siliconhills.dev/${this.kustomizationResource?.metadata?.name} in namespace ${this.kustomizationResource?.metadata?.namespace}`
+      );
+      return result;
+    } catch (err) {
+      if (timeLeft <= 0) throw err;
+      const waitTime = Math.max(5000, retryTimeout / 10);
+      this.spinner.warn(
+        `received the following error, but will retry in ${waitTime} milliseconds and will keep retrying until ${timeLeft} milliseconds expires\n${(
+          err.stderr ||
+          err.message ||
+          err
+        ).toString()}`
+      );
+      await new Promise((r) => setTimeout(r, waitTime));
+      return this.patch(options, timeLeft - waitTime);
+    }
   }
 
   async kustomize(options: Options = {}) {

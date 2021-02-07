@@ -115,6 +115,7 @@ export interface KustomizationSpec {
   configMapGenerator?: ConfigMapArgs[]; // []kustomizeTypes.ConfigMapArgs `json:"configMapGenerator,omitempty" yaml:"configMapGenerator,omitempty"`
   configuration?: TransformerConfig; // TransformerConfig `json:"configuration,omitempty" yaml:"configuration,omitempty"`
   crds?: string[]; // []string `json:"crds,omitempty" yaml:"crds,omitempty"`
+  retryTimeout?: number; // string `json:"retryTimeout,omitempty" yaml:"retryTimeout,omitempty"`
   generatorOptions?: any; // *kustomizeTypes.GeneratorOptions `json:"generatorOptions,omitempty" yaml:"generatorOptions,omitempty"`
   images?: Image[]; // []kustomizeTypes.Image `json:"images,omitempty" yaml:"images,omitempty"`
   namePrefix?: string; // string `json:"namePrefix,omitempty" yaml:"namePrefix,omitempty"`

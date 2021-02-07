@@ -57,7 +57,8 @@ export default class Kubectl extends Command {
     getOptions: Partial<GetOptions> | string = {},
     options?: Options
   ): Promise<T> {
-    let { stdin, stdout } = getOptions as Partial<GetOptions>;
+    const { stdout } = getOptions as Partial<GetOptions>;
+    let { stdin } = getOptions as Partial<GetOptions>;
     if (typeof getOptions === 'string') stdin = getOptions;
     const { file, output, ignoreNotFound } = {
       ignoreNotFound: true,

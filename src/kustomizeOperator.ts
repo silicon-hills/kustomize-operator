@@ -37,6 +37,8 @@ import {
   ResourceVersion
 } from './types';
 
+const logger = console;
+
 export const project: OperatorFrameworkProject = YAML.parse(
   fs.readFileSync(path.resolve(__dirname, '../PROJECT')).toString()
 );
@@ -138,44 +140,46 @@ export default class KustomizeOperator extends Operator {
       ResourceVersion.V1alpha1,
       KustomizeOperator.kind2Plural(ResourceKind.Kustomization),
       async (e) => {
-        const {
-          oldResource,
-          newResource
-        } = this.resourceTracker.rotateResource(e.object);
-        try {
-          if (e.type === ResourceEventType.Deleted) return;
-          switch (e.type) {
-            case ResourceEventType.Added: {
-              await this.addedKustomization(newResource, e.meta, oldResource);
-              break;
+        // spawn as non blocking process
+        (async () => {
+          const {
+            oldResource,
+            newResource
+          } = this.resourceTracker.rotateResource(e.object);
+          try {
+            if (e.type === ResourceEventType.Deleted) return;
+            switch (e.type) {
+              case ResourceEventType.Added: {
+                await this.addedKustomization(newResource, e.meta, oldResource);
+                break;
+              }
+              case ResourceEventType.Modified: {
+                await this.modifiedKustomization(
+                  newResource,
+                  e.meta,
+                  oldResource
+                );
+                break;
+              }
             }
-            case ResourceEventType.Modified: {
-              await this.modifiedKustomization(
-                newResource,
-                e.meta,
-                oldResource
-              );
-              break;
-            }
+          } catch (err) {
+            this.spinner.fail(
+              [
+                err.message || '',
+                err.body?.message || err.response?.body?.message || ''
+              ].join(': ')
+            );
+            if (this.config.debug) this.log.error(err);
           }
-        } catch (err) {
-          this.spinner.fail(
-            [
-              err.message || '',
-              err.body?.message || err.response?.body?.message || ''
-            ].join(': ')
-          );
-          if (this.config.debug) this.log.error(err);
-        }
+        })().catch(logger.error);
       }
-    ).catch(console.error);
+    ).catch(logger.error);
   }
 
   async updateStatus(
     status: KustomizationStatus,
     resource: KustomizationResource
   ): Promise<void> {
-    this.setResourceStatus;
     if (!resource.metadata?.name || !resource.metadata.namespace) return;
     await this.customObjectsApi.patchNamespacedCustomObjectStatus(
       KustomizeOperator.resource2Group(ResourceGroup.Kustomize),

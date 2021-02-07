@@ -17,6 +17,8 @@
 import execa, { ExecaChildProcess, ExecaReturnValue, Options } from 'execa';
 import { HashMap } from '../types';
 
+const logger = console;
+
 export default abstract class Command {
   protected config: CommandConfig;
 
@@ -40,7 +42,7 @@ export default abstract class Command {
     }
   ): Promise<T> {
     if (this.config.debug) {
-      console.debug('$', [this.command, ...args].join(' '));
+      logger.debug('$', [this.command, ...args].join(' '));
     }
     if (!Array.isArray(args)) args = [args];
     const p = execa(this.command, args, options);
