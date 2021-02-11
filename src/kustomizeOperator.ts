@@ -74,7 +74,7 @@ export default class KustomizeOperator extends Operator {
         resource
       );
       const kustomizeService = new KustomizeService(resource);
-      await kustomizeService.apply(resource);
+      await kustomizeService.apply();
       await this.updateStatus(
         {
           message: 'created kustomization',
@@ -114,7 +114,7 @@ export default class KustomizeOperator extends Operator {
         resource
       );
       const kustomizeService = new KustomizeService(resource);
-      await kustomizeService.apply(resource);
+      await kustomizeService.apply();
       await this.updateStatus(
         {
           message: 'modified kustomization',
