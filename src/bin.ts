@@ -17,6 +17,8 @@
 import KustomizeOperator from './kustomizeOperator';
 import config from './config';
 
+const logger = console;
+
 (async () => {
   const kustomizeOperator = new KustomizeOperator(config);
   function exit(_reason: string) {
@@ -27,4 +29,4 @@ import config from './config';
     .on('SIGTERM', () => exit('SIGTERM'))
     .on('SIGINT', () => exit('SIGINT'));
   await kustomizeOperator.start();
-})().catch(console.error);
+})().catch(logger.error);

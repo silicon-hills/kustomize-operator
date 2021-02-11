@@ -16,20 +16,22 @@
 
 import { OperatorLogger } from '@dot-i/k8s-operator';
 
+const logger = console;
+
 export default class Logger implements OperatorLogger {
   info(message: string) {
-    console.info(message);
+    logger.info(message);
   }
 
   debug(message: string) {
-    console.debug(message);
+    logger.debug(message);
   }
 
   warn(message: string) {
-    console.warn(message);
+    logger.warn(message);
   }
 
   error(message: string) {
-    console.error(message);
+    logger.error(message);
   }
 }

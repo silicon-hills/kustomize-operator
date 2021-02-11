@@ -15,7 +15,6 @@
  */
 
 export * from './config';
-export * from './logger';
 export * from './types';
 export { default as Logger } from './logger';
 export { default as config } from './config';

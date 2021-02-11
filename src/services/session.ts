@@ -20,10 +20,12 @@ import os from 'os';
 import path from 'path';
 import { KubernetesObject } from '@kubernetes/client-node';
 import pkg from '~/../package.json';
+import Kubectl from './kubectl';
 import { KustomizationSpec } from '~/types';
-import { resources2String } from './util';
 
-export default class Session {
+export default class SessionService {
+  private kubectl = new Kubectl();
+
   private _workdir: string | undefined;
 
   public static queriedResourcesPath = 'resources/_queried.yaml';
@@ -44,18 +46,22 @@ export default class Session {
   }
 
   async setResources(resources: KubernetesObject[]) {
-    const resourcesPath = await this.getWorkdir(Session.queriedResourcesPath);
-    await fs.writeFile(resourcesPath, resources2String(resources));
+    const resourcesPath = await this.getWorkdir(
+      SessionService.queriedResourcesPath
+    );
+    await fs.writeFile(resourcesPath, this.kubectl.resources2String(resources));
   }
 
   async setKustomization(spec: KustomizationSpec = {}) {
-    const kustomizationPath = await this.getWorkdir(Session.kustomizationPath);
+    const kustomizationPath = await this.getWorkdir(
+      SessionService.kustomizationPath
+    );
     const kustomizeConfigPath = await this.getWorkdir(
-      Session.kustomizeConfigPath
+      SessionService.kustomizeConfigPath
     );
     const kustomization = {
-      resources: [Session.queriedResourcesPath],
-      configurations: [Session.kustomizeConfigPath],
+      resources: [SessionService.queriedResourcesPath],
+      configurations: [SessionService.kustomizeConfigPath],
       ...(spec.commonLabels ? { commonLabels: spec.commonLabels } : {}),
       ...(spec.crds ? { crds: spec.crds } : {}),
       ...(spec.images ? { images: spec.images } : {}),

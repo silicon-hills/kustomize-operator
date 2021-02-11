@@ -41,3 +41,22 @@ describe.skip('new Kubectl()', () => {
     }
   });
 });
+
+describe('new Kubectl().string2Resources(resourcesStr)', () => {
+  it('should convert string to resources', async () => {
+    const kubectl = new Kubectl();
+    const resourcesStr = `
+hello: world
+---
+one:
+  two: three
+----
+abc: defg
+`;
+    expect(kubectl.string2Resources(resourcesStr)).toMatchObject([
+      { hello: 'world' },
+      { one: { two: 'three' } },
+      { abc: 'defg' }
+    ]);
+  });
+});

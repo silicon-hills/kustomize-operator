@@ -1,21 +1,8 @@
-# Copyright 2020 Silicon Hills LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 include silicon.mk
 
 BABEL := node_modules/.bin/babel
 BABEL_NODE := node_modules/.bin/babel-node
+CLOC := node_modules/.bin/cloc
 CSPELL := node_modules/.bin/cspell
 ESLINT := node_modules/.bin/eslint
 JEST := node_modules/.bin/jest
@@ -23,6 +10,7 @@ LOCKFILE_LINT := node_modules/.bin/lockfile-lint
 MAJESTIC := node_modules/.bin/majestic
 PRETTIER := node_modules/.bin/prettier
 TSC := node_modules/.bin/tsc
+WEBPACK := node_modules/.bin/webpack
 COLLECT_COVERAGE_FROM := ["src/**/*.{js,jsx,ts,tsx}"]
 
 BUILD_DEPS := $(patsubst src/%.ts,lib/%.d.ts,$(shell find src -name '*.ts' -not -name '*.d.ts')) \
@@ -35,7 +23,7 @@ FORMAT_TARGET := $(FORMAT_DEPS) $(DONE)/format
 LINT_DEPS := $(patsubst %,$(DONE)/_lint/%,$(shell $(GIT) ls-files 2>$(NULL) | grep -E "\.([jt]sx?)$$"))
 LINT_TARGET := $(LINT_DEPS) $(DONE)/lint
 
-SPELLCHECK_DEPS := $(patsubst %,$(DONE)/_spellcheck/%,$(shell $(GIT) ls-files 2>$(NULL)))
+SPELLCHECK_DEPS := $(patsubst %,$(DONE)/_spellcheck/%,$(shell $(GIT) ls-files 2>$(NULL) | $(GIT) ls-files | grep -E "\.(md)$$"))
 SPELLCHECK_TARGET := $(SPELLCHECK_DEPS) $(DONE)/spellcheck
 
 TEST_DEPS := $(patsubst %,$(DONE)/_test/%,$(shell $(GIT) ls-files 2>$(NULL) | grep -E "\.([jt]sx?)$$"))
@@ -57,6 +45,14 @@ $(DONE)/install: package.json
 .PHONY: prepare
 prepare:
 	@
+
+.PHONY: upgrade
+upgrade:
+	@$(NPM) upgrade --latest
+
+.PHONY: inc
+inc:
+	@npm version patch --git=false $(NOFAIL)
 
 .PHONY: format +format _format ~format
 format: _format ~format
@@ -129,12 +125,24 @@ build: _build ~build
 ~build: ~test $(BUILD_TARGET)
 +build: _build $(BUILD_TARGET)
 _build:
-	-@rm -rf lib $(NOFAIL)
+	-@rm -rf es lib $(NOFAIL)
 lib:
-	-@rm -r node_modules/.tmp/lib $(NOFAIL)
-	@$(BABEL) src -d lib --extensions '.ts,.tsx' --source-maps
-	@$(TSC) -d --emitDeclarationOnly
-	@cp -r node_modules/.tmp/lib/src/. lib $(NOFAIL)
+	@$(WEBPACK)
+	@$(BABEL) --env-name umd src -d lib --extensions '.js,.jsx,.ts,.tsx' --source-maps
+	@$(BABEL) --env-name esm src -d es --extensions '.js,.jsx,.ts,.tsx' --source-maps
+	@$(TSC) -p tsconfig.app.json -d --emitDeclarationOnly
+
+.PHONY: publish +publish
+publish: build
+	@$(MAKE) -s +publish
++publish:
+	@$(NPM) publish
+
+.PHONY: pack +pack
+pack: build
+	@$(MAKE) -s +pack
++pack:
+	@$(NPM) pack
 
 .PHONY: coverage
 coverage: ~lint
@@ -162,29 +170,24 @@ start: ~format
 
 .PHONY: clean
 clean:
-	-@$(JEST) --clearCache
-ifeq ($(PLATFORM), win32)
+	-@$(JEST) --clearCache $(NOFAIL)
 	-@$(GIT) clean -fXd \
-		-e !/node_modules \
-		-e !/node_modules/**/* \
-		-e !/yarn.lock \
-		-e !/pnpm-lock.yaml \
-		-e !/package-lock.json
-else
-	-@$(GIT) clean -fXd \
-		-e \!/node_modules \
-		-e \!/node_modules/**/* \
-		-e \!/yarn.lock \
-		-e \!/pnpm-lock.yaml \
-		-e \!/package-lock.json
-endif
-	-@$(RM) -rf node_modules/.cache
-	-@$(RM) -rf node_modules/.make
-	-@$(RM) -rf node_modules/.tmp
+		-e $(BANG)/node_modules \
+		-e $(BANG)/node_modules/**/* \
+		-e $(BANG)/package-lock.json \
+		-e $(BANG)/pnpm-lock.yaml \
+		-e $(BANG)/yarn.lock $(NOFAIL)
+	-@rm -rf node_modules/.cache $(NOFAIL)
+	-@rm -rf node_modules/.make $(NOFAIL)
+	-@rm -rf node_modules/.tmp $(NOFAIL)
 
 .PHONY: purge
 purge: clean
 	-@$(GIT) clean -fXd
+
+.PHONY: count
+count:
+	@$(CLOC) $(shell $(GIT) ls-files)
 
 .PHONY: report
 report: spellcheck lint test

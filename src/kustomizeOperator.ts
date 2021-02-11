@@ -25,7 +25,7 @@ import Operator, {
 } from '@dot-i/k8s-operator';
 import Logger from './logger';
 import { Config } from './config';
-import { Kustomize } from './services';
+import { KustomizeService, OperatorService } from './services';
 import ResourceTracker from './resourceTracker';
 import {
   KustomizationResource,
@@ -48,9 +48,11 @@ export default class KustomizeOperator extends Operator {
 
   spinner = ora();
 
-  customObjectsApi: k8s.CustomObjectsApi;
+  private customObjectsApi: k8s.CustomObjectsApi;
 
-  resourceTracker = new ResourceTracker<KustomizationResource>();
+  private resourceTracker = new ResourceTracker<KustomizationResource>();
+
+  private operatorService = new OperatorService();
 
   constructor(protected config: Config, protected log = new Logger()) {
     super(log);
@@ -71,8 +73,8 @@ export default class KustomizeOperator extends Operator {
         },
         resource
       );
-      const kustomize = new Kustomize(resource);
-      await kustomize.apply();
+      const kustomizeService = new KustomizeService(resource);
+      await kustomizeService.apply(resource);
       await this.updateStatus(
         {
           message: 'created kustomization',
@@ -111,8 +113,8 @@ export default class KustomizeOperator extends Operator {
         },
         resource
       );
-      const kustomize = new Kustomize(resource);
-      await kustomize.apply();
+      const kustomizeService = new KustomizeService(resource);
+      await kustomizeService.apply(resource);
       await this.updateStatus(
         {
           message: 'modified kustomization',
@@ -163,13 +165,8 @@ export default class KustomizeOperator extends Operator {
               }
             }
           } catch (err) {
-            this.spinner.fail(
-              [
-                err.message || '',
-                err.body?.message || err.response?.body?.message || ''
-              ].join(': ')
-            );
-            if (this.config.debug) this.log.error(err);
+            this.spinner.fail(this.operatorService.getErrorMessage(err));
+            if (this.config.debug) logger.error(err);
           }
         })().catch(logger.error);
       }

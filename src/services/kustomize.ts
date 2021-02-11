@@ -18,18 +18,19 @@ import ora from 'ora';
 import { Options } from 'execa';
 import {
   KubernetesListObject,
-  KubernetesObject
+  KubernetesObject,
+  V1OwnerReference
 } from '@kubernetes/client-node';
-import Kubectl, { Output } from './kubectl';
-import Session from './session';
-import Command, { RunCallback } from './command';
 import { Selector, KustomizationResource, ResourceKind } from '~/types';
-import { resources2String, string2Resources } from './util';
+import CommandService, { RunCallback } from './command';
+import KubectlService, { Output } from './kubectl';
+import OperatorService from './operator';
+import SessionService from './session';
 
-const logger = console;
-
-export default class Kustomize extends Command {
+export default class KustomizeService extends CommandService {
   command = 'kustomize';
+
+  private operatorService = new OperatorService();
 
   constructor(private kustomizationResource: KustomizationResource) {
     super();
@@ -37,7 +38,7 @@ export default class Kustomize extends Command {
 
   private spinner = ora();
 
-  private kubectl = new Kubectl();
+  private kubectlService = new KubectlService();
 
   async help(options?: Options, cb?: RunCallback) {
     return this.run('--help', options, cb);
@@ -49,49 +50,70 @@ export default class Kustomize extends Command {
     if (!namespace || !this.kustomizationResource.spec?.resources?.length) {
       return [];
     }
-    const resourcesStr = resources2String(
-      (this.kustomizationResource.spec?.resources).map(
-        (resource: Selector) => ({
-          apiVersion: `${resource.group ? `${resource.group}/` : ''}${
-            resource.version
-          }`,
-          kind: resource.kind,
-          metadata: {
-            name: resource.name,
-            namespace: resource.namespace || namespace
-          }
-        })
-      )
+    const resources = (this.kustomizationResource.spec?.resources).map(
+      (resource: Selector) => ({
+        apiVersion: `${resource.group ? `${resource.group}/` : ''}${
+          resource.version
+        }`,
+        kind: resource.kind,
+        metadata: {
+          name: resource.name,
+          namespace: resource.namespace || namespace
+        }
+      })
     );
     return (
       (
-        await this.kubectl.get<KubernetesListObject<KubernetesObject>>({
-          stdin: resourcesStr,
+        await this.kubectlService.get<KubernetesListObject<KubernetesObject>>({
+          stdin: resources,
           output: Output.Json
         })
       )?.items || []
     );
   }
 
-  async apply() {
+  async apply(owner?: KubernetesObject) {
     const resources = (await this.patch())
       .filter(
         (resource: KubernetesObject) =>
           resource.kind !== ResourceKind.Kustomization
       )
       .map((resource: KubernetesObject) => {
+        const ns = resource.metadata?.namespace;
+        const name = resource.metadata?.name;
+        if (typeof ns === 'undefined' || typeof name === 'undefined') {
+          throw new Error('metadata.name and metadata.namespace must be set');
+        }
+        const ownerReferences = resource.metadata?.ownerReferences || [];
+        const ownerReferencesUidSet = new Set(
+          ownerReferences.map(
+            (ownerReference: V1OwnerReference) => ownerReference.uid
+          )
+        );
+        if (
+          typeof owner !== 'undefined' &&
+          owner.metadata?.namespace === ns &&
+          !ownerReferencesUidSet.has(owner.metadata?.uid || '')
+        ) {
+          ownerReferences.push(
+            this.operatorService.getOwnerReference(owner, ns)
+          );
+        }
         return {
+          ...resource,
           metadata: {
-            name: resource.metadata?.name,
-            namespace: resource.metadata?.namespace
-          },
-          ...resource
+            ...resource.metadata,
+            ...(ownerReferences.length
+              ? {
+                  ownerReferences
+                }
+              : {})
+          }
         };
       });
     if (!resources.length) return;
-    const resourcesStr = resources2String(resources);
-    await this.kubectl.apply({
-      stdin: resourcesStr,
+    await this.kubectlService.apply({
+      stdin: resources,
       stdout: true
     });
   }
@@ -104,7 +126,7 @@ export default class Kustomize extends Command {
       this.kustomizationResource?.spec?.retryTimeout || 60000;
     if (typeof timeLeft !== 'number') timeLeft = retryTimeout;
     try {
-      const session = new Session();
+      const sessionService = new SessionService();
       const resources = await this.getResources();
       if (
         resources.length <
@@ -112,26 +134,29 @@ export default class Kustomize extends Command {
       ) {
         // TODO: improve error message
         throw new Error(
-          `failed to find some resources for kustomizations.kustomize.siliconhills.dev/${this.kustomizationResource?.metadata?.name} in namespace ${this.kustomizationResource?.metadata?.namespace}`
+          `failed to find some resources for ${this.operatorService.getFullName(
+            { resource: this.kustomizationResource }
+          )}`
         );
       }
       if (!resources.length) return [];
-      await session.setResources(resources);
-      await session.setKustomization(this.kustomizationResource.spec);
-      const workdir = await session.getWorkdir();
+      await sessionService.setResources(resources);
+      await sessionService.setKustomization(this.kustomizationResource.spec);
+      const workdir = await sessionService.getWorkdir();
       const patched = await this.kustomize({ cwd: workdir, ...options });
-      await session.cleanup();
-      const result = string2Resources(patched.toString());
-
+      await sessionService.cleanup();
+      const result = this.kubectlService.string2Resources(patched.toString());
       this.spinner.succeed(
-        `applied patches for kustomizations.kustomize.siliconhills.dev/${this.kustomizationResource?.metadata?.name} in namespace ${this.kustomizationResource?.metadata?.namespace}`
+        `applied patches for ${this.operatorService.getFullName({
+          resource: this.kustomizationResource
+        })}`
       );
       return result;
     } catch (err) {
       if (timeLeft <= 0) throw err;
       const waitTime = Math.max(5000, retryTimeout / 10);
       this.spinner.warn(
-        `received the following error, but will retry in ${waitTime} milliseconds and will keep retrying until ${timeLeft} milliseconds expires\n${(
+        `received the following error, but will retry in ${waitTime}ms and will keep retrying until ${timeLeft}ms expires\n${(
           err.stderr ||
           err.message ||
           err

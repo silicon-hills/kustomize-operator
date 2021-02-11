@@ -100,6 +100,8 @@ typings/
 # application
 .tern-port
 /lib
+/es
+/dist
 package-lock.json
 yarn.lock
 tsconfig.tsbuildinfo

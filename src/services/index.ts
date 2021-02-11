@@ -14,12 +14,19 @@
  * limitations under the License.
  */
 
-import Command from './command';
-import Kubectl from './kubectl';
-import Kustomize from './kustomize';
+import CommandService from './command';
+import KubectlService from './kubectl';
+import KustomizeService from './kustomize';
+import OperatorService from './operator';
+import SessionService from './session';
 
 export * from './command';
 export * from './kubectl';
-export * from './kustomize';
 
-export { Command, Kubectl, Kustomize };
+export {
+  CommandService,
+  KubectlService,
+  KustomizeService,
+  OperatorService,
+  SessionService
+};
