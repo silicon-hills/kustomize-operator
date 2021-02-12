@@ -1,6 +1,6 @@
 {
   "name": "kustomize-operator",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "operator to kustomize kubernetes resources",
   "sideEffects": false,
   "keywords": [

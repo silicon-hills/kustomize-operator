@@ -19,7 +19,6 @@ import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
 import { KubernetesObject } from '@kubernetes/client-node';
-import pkg from '~/../package.json';
 import Kubectl from './kubectl';
 import { KustomizationSpec } from '~/types';
 
@@ -37,7 +36,7 @@ export default class SessionService {
   async getWorkdir(...paths: string[]) {
     if (!this._workdir) {
       this._workdir = await fs.mkdtemp(
-        path.resolve(os.tmpdir(), `${pkg.name}-`)
+        path.resolve(os.tmpdir(), 'kustomize-operator-')
       );
     }
     const result = path.resolve(this._workdir, ...paths);
