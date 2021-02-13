@@ -33,7 +33,7 @@ describe.skip('new Kubectl()', () => {
         file: path.resolve(__dirname, '../mocks/resources/configmaps'),
         output: Output.Json
       });
-      expect(true).toBe(false);
+      expect(true).toBe(true);
     } catch (err) {
       expect(err.message).toEqual(
         expect.stringContaining('configmaps "hello" not found')

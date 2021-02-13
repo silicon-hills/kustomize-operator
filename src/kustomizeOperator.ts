@@ -23,10 +23,10 @@ import Operator, {
   ResourceEventType,
   ResourceMetaImpl
 } from '@dot-i/k8s-operator';
-import Logger from './logger';
-import { Config } from './config';
-import { KustomizeService, OperatorService } from './services';
-import ResourceTracker from './resourceTracker';
+import Logger from '~/logger';
+import ResourceTracker from '~/resourceTracker';
+import { Config } from '~/config';
+import { KustomizeService, OperatorService, TrackingService } from '~/services';
 import {
   KustomizationResource,
   KustomizationStatus,
@@ -35,7 +35,7 @@ import {
   ResourceGroup,
   ResourceKind,
   ResourceVersion
-} from './types';
+} from '~/types';
 
 const logger = console;
 
@@ -48,6 +48,8 @@ export default class KustomizeOperator extends Operator {
 
   spinner = ora();
 
+  private trackingService = new TrackingService<KustomizationResource>();
+
   private customObjectsApi: k8s.CustomObjectsApi;
 
   private resourceTracker = new ResourceTracker<KustomizationResource>();
@@ -59,12 +61,21 @@ export default class KustomizeOperator extends Operator {
     this.customObjectsApi = this.kubeConfig.makeApiClient(k8s.CustomObjectsApi);
   }
 
+  protected async deletedKustomization(
+    resource: KustomizationResource,
+    _meta: ResourceMetaImpl,
+    _oldResource?: KustomizationResource
+  ) {
+    this.trackingService.unregisterTracking(resource);
+  }
+
   protected async addedKustomization(
     resource: KustomizationResource,
     _meta: ResourceMetaImpl,
     _oldResource?: KustomizationResource
   ) {
     try {
+      this.trackingService.registerTracking(resource, 'kustomization');
       await this.updateStatus(
         {
           message: 'creating kustomization',
@@ -74,7 +85,8 @@ export default class KustomizeOperator extends Operator {
         resource
       );
       const kustomizeService = new KustomizeService(resource);
-      await kustomizeService.apply();
+      await kustomizeService.apply(this.trackingService, resource);
+      if (!this.trackingService.isTracking(resource)) return;
       await this.updateStatus(
         {
           message: 'created kustomization',
@@ -83,15 +95,18 @@ export default class KustomizeOperator extends Operator {
         },
         resource
       );
+      this.trackingService.registerTracking(resource);
     } catch (err) {
-      await this.updateStatus(
-        {
-          message: err.message?.toString() || '',
-          phase: KustomizationStatusPhase.Failed,
-          ready: false
-        },
-        resource
-      );
+      if (this.trackingService.isTracking(resource)) {
+        await this.updateStatus(
+          {
+            message: err.message?.toString() || '',
+            phase: KustomizationStatusPhase.Failed,
+            ready: false
+          },
+          resource
+        );
+      }
       throw err;
     }
   }
@@ -104,34 +119,39 @@ export default class KustomizeOperator extends Operator {
     if (resource.metadata?.generation === oldResource?.metadata?.generation) {
       return;
     }
+    this.trackingService.registerTracking(resource);
     try {
       await this.updateStatus(
         {
-          message: 'modifying kustomization',
+          message: 'updating kustomization',
           phase: KustomizationStatusPhase.Pending,
           ready: false
         },
         resource
       );
       const kustomizeService = new KustomizeService(resource);
-      await kustomizeService.apply();
+      await kustomizeService.apply(this.trackingService, resource);
+      if (!this.trackingService.isTracking(resource)) return;
       await this.updateStatus(
         {
-          message: 'modified kustomization',
+          message: 'updated kustomization',
           phase: KustomizationStatusPhase.Succeeded,
           ready: true
         },
         resource
       );
+      this.trackingService.registerTracking(resource);
     } catch (err) {
-      await this.updateStatus(
-        {
-          message: err.message?.toString() || '',
-          phase: KustomizationStatusPhase.Failed,
-          ready: false
-        },
-        resource
-      );
+      if (this.trackingService.isTracking(resource)) {
+        await this.updateStatus(
+          {
+            message: err.message?.toString() || '',
+            phase: KustomizationStatusPhase.Failed,
+            ready: false
+          },
+          resource
+        );
+      }
       throw err;
     }
   }
@@ -140,7 +160,7 @@ export default class KustomizeOperator extends Operator {
     this.watchResource(
       KustomizeOperator.resource2Group(ResourceGroup.Kustomize),
       ResourceVersion.V1alpha1,
-      KustomizeOperator.kind2Plural(ResourceKind.Kustomization),
+      this.operatorService.kind2Plural(ResourceKind.Kustomization),
       async (e) => {
         // spawn as non blocking process
         (async () => {
@@ -149,7 +169,6 @@ export default class KustomizeOperator extends Operator {
             newResource
           } = this.resourceTracker.rotateResource(e.object);
           try {
-            if (e.type === ResourceEventType.Deleted) return;
             switch (e.type) {
               case ResourceEventType.Added: {
                 await this.addedKustomization(newResource, e.meta, oldResource);
@@ -157,6 +176,14 @@ export default class KustomizeOperator extends Operator {
               }
               case ResourceEventType.Modified: {
                 await this.modifiedKustomization(
+                  newResource,
+                  e.meta,
+                  oldResource
+                );
+                break;
+              }
+              case ResourceEventType.Deleted: {
+                await this.deletedKustomization(
                   newResource,
                   e.meta,
                   oldResource
@@ -182,7 +209,7 @@ export default class KustomizeOperator extends Operator {
       KustomizeOperator.resource2Group(ResourceGroup.Kustomize),
       ResourceVersion.V1alpha1,
       resource.metadata.namespace,
-      KustomizeOperator.kind2Plural(ResourceKind.Kustomization),
+      this.operatorService.kind2Plural(ResourceKind.Kustomization),
       resource.metadata.name,
       [
         {
@@ -202,13 +229,5 @@ export default class KustomizeOperator extends Operator {
 
   static resource2Group(group: string) {
     return `${group}.${project.domain}`;
-  }
-
-  static kind2Plural(kind: string) {
-    const lowercasedKind = kind.toLowerCase();
-    if (lowercasedKind[lowercasedKind.length - 1] === 's') {
-      return lowercasedKind;
-    }
-    return `${lowercasedKind}s`;
   }
 }

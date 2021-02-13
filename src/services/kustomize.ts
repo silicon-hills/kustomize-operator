@@ -26,6 +26,7 @@ import CommandService, { RunCallback } from './command';
 import KubectlService, { Output } from './kubectl';
 import OperatorService from './operator';
 import SessionService from './session';
+import TrackingService from './tracking';
 
 export default class KustomizeService extends CommandService {
   command = 'kustomize';
@@ -72,8 +73,13 @@ export default class KustomizeService extends CommandService {
     );
   }
 
-  async apply(owner?: KubernetesObject) {
-    const resources = (await this.patch())
+  async apply(
+    trackingService: TrackingService,
+    kustomization: KustomizationResource,
+    owner?: KubernetesObject
+  ) {
+    if (!trackingService.isTracking(kustomization)) return;
+    const resources = (await this.patch(trackingService, kustomization))
       .filter(
         (resource: KubernetesObject) =>
           resource.kind !== ResourceKind.Kustomization
@@ -112,6 +118,7 @@ export default class KustomizeService extends CommandService {
         };
       });
     if (!resources.length) return;
+    if (!trackingService.isTracking(kustomization)) return;
     await this.kubectlService.apply({
       stdin: resources,
       stdout: true
@@ -119,6 +126,8 @@ export default class KustomizeService extends CommandService {
   }
 
   async patch(
+    trackingService: TrackingService,
+    kustomization: KustomizationResource,
     options: Options = {},
     timeLeft?: number
   ): Promise<KubernetesObject[]> {
@@ -126,7 +135,7 @@ export default class KustomizeService extends CommandService {
       this.kustomizationResource?.spec?.retryTimeout || 60000;
     if (typeof timeLeft !== 'number') timeLeft = retryTimeout;
     try {
-      const sessionService = new SessionService();
+      if (!trackingService.isTracking(kustomization)) return [];
       const resources = await this.getResources();
       if (
         resources.length <
@@ -140,9 +149,14 @@ export default class KustomizeService extends CommandService {
         );
       }
       if (!resources.length) return [];
+      const sessionService = new SessionService();
       await sessionService.setResources(resources);
       await sessionService.setKustomization(this.kustomizationResource.spec);
       const workdir = await sessionService.getWorkdir();
+      if (!trackingService.isTracking(kustomization)) {
+        await sessionService.cleanup();
+        return [];
+      }
       const patched = await this.kustomize({ cwd: workdir, ...options });
       await sessionService.cleanup();
       const result = this.kubectlService.string2Resources(patched.toString());
@@ -163,7 +177,12 @@ export default class KustomizeService extends CommandService {
         ).toString()}`
       );
       await new Promise((r) => setTimeout(r, waitTime));
-      return this.patch(options, timeLeft - waitTime);
+      return this.patch(
+        trackingService,
+        kustomization,
+        options,
+        timeLeft - waitTime
+      );
     }
   }
 

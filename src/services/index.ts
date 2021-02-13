@@ -19,6 +19,7 @@ import KubectlService from './kubectl';
 import KustomizeService from './kustomize';
 import OperatorService from './operator';
 import SessionService from './session';
+import TrackingService from './tracking';
 
 export * from './command';
 export * from './kubectl';
@@ -28,5 +29,6 @@ export {
   KubectlService,
   KustomizeService,
   OperatorService,
-  SessionService
+  SessionService,
+  TrackingService
 };

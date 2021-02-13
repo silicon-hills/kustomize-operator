@@ -59,7 +59,7 @@ export default class OperatorService {
     )}${ns ? ` in ns ${chalk.blueBright.bold(ns)}` : ''}`;
   }
 
-  kind2plural(kind: string) {
+  kind2Plural(kind: string) {
     let lowercasedKind = kind.toLowerCase();
     if (lowercasedKind[lowercasedKind.length - 1] === 's') {
       return lowercasedKind;
@@ -87,7 +87,7 @@ export default class OperatorService {
   }
 
   getFullType(kind: string, group?: string): string {
-    return `${this.kind2plural(kind)}${group ? `.${group}` : ''}`;
+    return `${this.kind2Plural(kind)}${group ? `.${group}` : ''}`;
   }
 
   getOwnerReference(owner: KubernetesObject, childNamespace: string) {
